@@ -48,20 +48,31 @@ function activate(context) {
         // The code you place here will be executed every time your command is executed
         // Display a message box to the user
         vscode.window.showInformationMessage("Reload started");
+        generate();
     });
     context.subscriptions.push(disposable);
-    const astGenerator = new astGenerator_1.ASTGenerator();
-    astGenerator.getAST().then((tree) => {
-        console.log(tree?.rootNode.toString());
-        if (tree) {
-            vscode.window.registerTreeDataProvider("tree-view", new astProvider_1.ASTProvider(tree));
-            // vscode.window.createTreeView('astViewer', {
-            // 	treeDataProvider: new ASTProvider(startingTree)
-            //   });
-        }
-    });
+    generate();
 }
 exports.activate = activate;
+vscode.window.onDidChangeActiveTextEditor(() => {
+    generate();
+});
+function generate() {
+    console.log('Generate called');
+    if (!vscode.window.activeTextEditor) {
+        // When changing tabs, the activeTextEditor will be undefined
+        // to simplify error handling we'll just return. No AST to generate anyway
+        return;
+    }
+    const astGenerator = new astGenerator_1.ASTGenerator();
+    astGenerator.getAST().then((tree) => {
+        if (tree) {
+            vscode.window.registerTreeDataProvider("tree-view", new astProvider_1.ASTProvider(tree));
+        }
+    }).catch((err) => {
+        console.log(err);
+    });
+}
 // This method is called when your extension is deactivated
 function deactivate() { }
 exports.deactivate = deactivate;
@@ -138,7 +149,6 @@ class ASTGenerator {
             this.parser = new Parser();
             // Get the path from the language lookup
             const langPath = this.langLookup.find((lang) => lang.name === langName)?.path;
-            console.log(langPath);
             if (!langPath) {
                 reject("Could not find the language");
             }
@@ -151,8 +161,8 @@ class ASTGenerator {
         });
     }
     async getCurrentFile() {
-        return new Promise((resolve, reject) => {
-            const currentDoc = vscode.window.activeTextEditor?.document;
+        return new Promise(async (resolve, reject) => {
+            const currentDoc = await vscode.window.activeTextEditor?.document;
             if (currentDoc === undefined) {
                 reject("No source code found");
             }
@@ -165,15 +175,14 @@ class ASTGenerator {
         return new Promise(async (resolve, reject) => {
             // If no current AST then create one
             let currentDoc = await this.getCurrentFile();
-            console.log(currentDoc.getText());
             let tree = this.fileASTs.get(currentDoc.fileName.toString().toLocaleLowerCase());
+            console.log("Current AST: " + currentDoc.fileName);
             if (tree === undefined || forceRebuild) {
                 // If no parser then create one
                 if (!this.parser) {
                     this.parser = await this.createParser(currentDoc.languageId);
                 }
                 // Generate the AST
-                console.log(this.parser);
                 tree = await this.parser.parse(currentDoc.getText());
                 if (tree) {
                     this.fileASTs.set(currentDoc.fileName.toString(), tree);
@@ -260,28 +269,47 @@ class ASTProvider {
             return Promise.resolve([]);
         }
         else if (element) {
-            return Promise.resolve([this.nodeToTreeItem(this.ast.rootNode)]);
+            if (element.terminal) {
+                return Promise.resolve([]);
+            }
+            let children = element.node.children;
+            if (children.length === 0) {
+                return Promise.resolve([new ASTNode(element.node, true, vscode.TreeItemCollapsibleState.None)]);
+            }
+            return Promise.resolve(element.node.children.map((node) => this.nodeToTreeItem(node)));
         }
         else {
             return Promise.resolve([this.nodeToTreeItem(this.ast.rootNode)]);
         }
     }
     nodeToTreeItem(node) {
-        return new ASTNode(node, node.id.toString(), vscode.TreeItemCollapsibleState.Collapsed);
+        return new ASTNode(node);
     }
 }
 exports.ASTProvider = ASTProvider;
 class ASTNode extends vscode.TreeItem {
-    constructor(node, label, collapsibleState) {
+    constructor(node, terminal = false, collapsibleState = vscode
+        .TreeItemCollapsibleState.Collapsed, label = node.type) {
         super(label, collapsibleState);
         this.node = node;
-        this.label = label;
+        this.terminal = terminal;
         this.collapsibleState = collapsibleState;
+        this.label = label;
         this.iconPath = {
             light: path.join(__filename, "..", "..", "resources", "light", "dependency.svg"),
             dark: path.join(__filename, "..", "..", "resources", "dark", "dependency.svg"),
         };
-        this.tooltip = `${this.label}`;
+        if (this.terminal) {
+            this.label = `"${this.node.text}"`;
+        }
+        // Check if multiline
+        else if (this.node.startPosition.row !== this.node.endPosition.row) {
+            this.label = `${this.label}: lines ${this.node.startPosition.row} - ${this.node.endPosition.row}`;
+        }
+        else {
+            this.label = `${this.label}: chars ${this.node.startPosition.column} - ${this.node.endPosition.column}`;
+        }
+        this.tooltip = `${this.node.text}`;
     }
 }
 

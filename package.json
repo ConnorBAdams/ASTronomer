@@ -11,7 +11,7 @@
     "Other"
   ],
   "activationEvents": [
-    "treeviewer.reloadTree"
+    "generate"
   ],
   "main": "./dist/extension.js",
   "contributes": {

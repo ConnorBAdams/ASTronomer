@@ -20,21 +20,34 @@ export function activate(context: vscode.ExtensionContext) {
             // The code you place here will be executed every time your command is executed
             // Display a message box to the user
             vscode.window.showInformationMessage("Reload started");
+            generate();
         }
     );
     context.subscriptions.push(disposable);
+    generate();
+}
+
+vscode.window.onDidChangeActiveTextEditor(() => {
+    generate();
+});
+
+function generate() {
+    console.log('Generate called');
+    if (!vscode.window.activeTextEditor) {
+        // When changing tabs, the activeTextEditor will be undefined
+        // to simplify error handling we'll just return. No AST to generate anyway
+        return;
+    }
     const astGenerator = new ASTGenerator();
     astGenerator.getAST().then((tree) => {
-        console.log(tree?.rootNode.toString());
         if (tree) {
             vscode.window.registerTreeDataProvider(
                 "tree-view",
                 new ASTProvider(tree)
             );
-            // vscode.window.createTreeView('astViewer', {
-            // 	treeDataProvider: new ASTProvider(startingTree)
-            //   });
         }
+    }).catch((err) => {
+        console.log(err);
     });
 }
 

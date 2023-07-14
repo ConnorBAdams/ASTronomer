@@ -36,7 +36,6 @@ export class ASTGenerator {
             const langPath = this.langLookup.find(
                 (lang) => lang.name === langName
             )?.path;
-            console.log(langPath);
             if (!langPath) {
                 reject("Could not find the language");
             }
@@ -55,8 +54,8 @@ export class ASTGenerator {
     }
 
     private async getCurrentFile(): Promise<TextDocument> {
-        return new Promise((resolve, reject) => {
-            const currentDoc = vscode.window.activeTextEditor?.document;
+        return new Promise(async (resolve, reject) => {
+            const currentDoc = await vscode.window.activeTextEditor?.document;
             if (currentDoc === undefined) {
                 reject("No source code found");
             } else {
@@ -69,15 +68,14 @@ export class ASTGenerator {
         return new Promise(async (resolve, reject) => {
             // If no current AST then create one
             let currentDoc = await this.getCurrentFile();
-            console.log(currentDoc.getText());
             let tree = this.fileASTs.get(currentDoc.fileName.toString().toLocaleLowerCase());
+            console.log("Current AST: " + currentDoc.fileName);
             if (tree === undefined || forceRebuild) {
                 // If no parser then create one
                 if (!this.parser) {
                     this.parser = await this.createParser(currentDoc.languageId);
                 }
                 // Generate the AST
-                console.log(this.parser);
                 tree = await this.parser.parse(currentDoc.getText());
                 if (tree) {
                     this.fileASTs.set(currentDoc.fileName.toString(), tree);
