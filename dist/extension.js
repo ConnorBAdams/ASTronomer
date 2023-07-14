@@ -50,14 +50,16 @@ function activate(context) {
         vscode.window.showInformationMessage("Reload started");
     });
     context.subscriptions.push(disposable);
-    const startingTree = new astGenerator_1.ASTGenerator().getAST();
-    console.log(startingTree?.rootNode.toString());
-    if (startingTree) {
-        vscode.window.registerTreeDataProvider("astViewer", new astProvider_1.ASTProvider(startingTree));
-        // vscode.window.createTreeView('astViewer', {
-        // 	treeDataProvider: new ASTProvider(startingTree)
-        //   });
-    }
+    const astGenerator = new astGenerator_1.ASTGenerator();
+    astGenerator.getAST().then((tree) => {
+        console.log(tree?.rootNode.toString());
+        if (tree) {
+            vscode.window.registerTreeDataProvider("tree-view", new astProvider_1.ASTProvider(tree));
+            // vscode.window.createTreeView('astViewer', {
+            // 	treeDataProvider: new ASTProvider(startingTree)
+            //   });
+        }
+    });
 }
 exports.activate = activate;
 // This method is called when your extension is deactivated
@@ -104,21 +106,87 @@ var __importStar = (this && this.__importStar) || function (mod) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ASTGenerator = void 0;
 const Parser = __webpack_require__(3);
+const web_tree_sitter_1 = __webpack_require__(3);
+const path_1 = __webpack_require__(5);
 const vscode = __importStar(__webpack_require__(1));
 class ASTGenerator {
     constructor() {
-        console.log(vscode.window.activeTextEditor?.document.uri.fsPath);
-        Parser.init().then(() => {
-            const parser = new Parser;
+        this.fileASTs = new Map();
+        this.langLookup = [
+            { name: "bash", path: "tree-sitter-bash.wasm" },
+            { name: "c_sharp", path: "tree-sitter-c_sharp.wasm" },
+            { name: "c", path: "tree-sitter-c.wasm" },
+            { name: "cpp", path: "tree-sitter-cpp.wasm" },
+            { name: "go", path: "tree-sitter-go.wasm" },
+            { name: "html", path: "tree-sitter-html.wasm" },
+            { name: "java", path: "tree-sitter-java.wasm" },
+            { name: "javascript", path: "tree-sitter-javascript.wasm" },
+            { name: "php", path: "tree-sitter-php.wasm" },
+            { name: "python", path: "tree-sitter-python.wasm" },
+            { name: "ql", path: "tree-sitter-ql.wasm" },
+            { name: "ruby", path: "tree-sitter-ruby.wasm" },
+            { name: "rust", path: "tree-sitter-rust.wasm" },
+            { name: "toml", path: "tree-sitter-toml.wasm" },
+            { name: "typescript", path: "tree-sitter-typescript.wasm" },
+            { name: "yaml", path: "tree-sitter-yaml.wasm" },
+        ];
+    }
+    async createParser(langName) {
+        return new Promise(async (resolve, reject) => {
+            console.log("Creating parser for language: " + langName);
+            await Parser.init();
+            this.parser = new Parser();
+            // Get the path from the language lookup
+            const langPath = this.langLookup.find((lang) => lang.name === langName)?.path;
+            console.log(langPath);
+            if (!langPath) {
+                reject("Could not find the language");
+            }
             // The path needs to be relative to the build root
-            const JavaScript = Parser.Language.load('tree-sitter-javascript.wasm');
-            parser.setLanguage(JavaScript);
-            const sourceCode = 'let x = 1; console.log(x);';
-            this.ast = parser.parse(sourceCode);
+            const path = (0, path_1.resolve)(__dirname, "..", "dist/tree-sitter/", `${langPath}`);
+            const language = await web_tree_sitter_1.Language.load(path);
+            this.parser.setLanguage(language);
+            console.log("Finished creating Parser");
+            resolve(this.parser);
         });
     }
-    getAST() {
-        return this.ast;
+    async getCurrentFile() {
+        return new Promise((resolve, reject) => {
+            const currentDoc = vscode.window.activeTextEditor?.document;
+            if (currentDoc === undefined) {
+                reject("No source code found");
+            }
+            else {
+                resolve(currentDoc);
+            }
+        });
+    }
+    async getAST(forceRebuild) {
+        return new Promise(async (resolve, reject) => {
+            // If no current AST then create one
+            let currentDoc = await this.getCurrentFile();
+            console.log(currentDoc.getText());
+            let tree = this.fileASTs.get(currentDoc.fileName.toString().toLocaleLowerCase());
+            if (tree === undefined || forceRebuild) {
+                // If no parser then create one
+                if (!this.parser) {
+                    this.parser = await this.createParser(currentDoc.languageId);
+                }
+                // Generate the AST
+                console.log(this.parser);
+                tree = await this.parser.parse(currentDoc.getText());
+                if (tree) {
+                    this.fileASTs.set(currentDoc.fileName.toString(), tree);
+                    resolve(tree);
+                }
+                else {
+                    reject("Could not parse the AST");
+                }
+            }
+            else {
+                resolve(tree);
+            }
+        });
     }
 }
 exports.ASTGenerator = ASTGenerator;

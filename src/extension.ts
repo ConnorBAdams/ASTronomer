@@ -9,9 +9,7 @@ import { ASTProvider } from "./astProvider";
 export function activate(context: vscode.ExtensionContext) {
     // Use the console to output diagnostic information (console.log) and errors (console.error)
     // This line of code will only be executed once when your extension is activated
-	vscode.window.showInformationMessage(
-		"TreeViewer is running"
-	);
+    vscode.window.showInformationMessage("TreeViewer is running");
 
     // The command has been defined in the package.json file
     // Now provide the implementation of the command with registerCommand
@@ -21,23 +19,23 @@ export function activate(context: vscode.ExtensionContext) {
         () => {
             // The code you place here will be executed every time your command is executed
             // Display a message box to the user
-            vscode.window.showInformationMessage(
-                "Reload started"
-            );
+            vscode.window.showInformationMessage("Reload started");
         }
     );
     context.subscriptions.push(disposable);
-	const startingTree = new ASTGenerator().getAST();
-    console.log(startingTree?.rootNode.toString());
-    if (startingTree) {
-        vscode.window.registerTreeDataProvider(
-            "astViewer",
-            new ASTProvider(startingTree)
-        );
-        // vscode.window.createTreeView('astViewer', {
-        // 	treeDataProvider: new ASTProvider(startingTree)
-        //   });
-    }
+    const astGenerator = new ASTGenerator();
+    astGenerator.getAST().then((tree) => {
+        console.log(tree?.rootNode.toString());
+        if (tree) {
+            vscode.window.registerTreeDataProvider(
+                "tree-view",
+                new ASTProvider(tree)
+            );
+            // vscode.window.createTreeView('astViewer', {
+            // 	treeDataProvider: new ASTProvider(startingTree)
+            //   });
+        }
+    });
 }
 
 // This method is called when your extension is deactivated
