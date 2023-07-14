@@ -1,33 +1,40 @@
 import * as vscode from "vscode";
 import * as fs from "fs";
 import * as path from "path";
-import { Tree } from "web-tree-sitter";
+import { Tree, SyntaxNode } from "web-tree-sitter";
 
-export class ASTProvider
-    implements vscode.TreeDataProvider<ASTNode>
-{
-    constructor(private ast: Tree) {}
+// Docs: https://code.visualstudio.com/api/extension-guides/tree-view
+export class ASTProvider implements vscode.TreeDataProvider<ASTNode> {
+    private ast: Tree;
+    constructor(ast: Tree) {
+        this.ast = ast;
+    }
 
     getTreeItem(element: ASTNode): vscode.TreeItem {
         return element;
     }
 
     getChildren(element?: ASTNode): Thenable<ASTNode[]> {
-        return Promise.resolve([]);
+        if (!this.ast) {
+            vscode.window.showInformationMessage("No AST available.");
+            return Promise.resolve([]);
+        } else if (element) {
+            return Promise.resolve(
+                [this.nodeToTreeItem(this.ast.rootNode)]
+            );
+        } else {
+            return Promise.resolve([this.nodeToTreeItem(this.ast.rootNode)]);
+        }
     }
 
-    private pathExists(p: string): boolean {
-        try {
-            fs.accessSync(p);
-        } catch (err) {
-            return false;
-        }
-        return true;
+    private nodeToTreeItem(node: SyntaxNode): ASTNode {
+        return new ASTNode(node, node.id.toString(), vscode.TreeItemCollapsibleState.Collapsed);
     }
 }
 
 class ASTNode extends vscode.TreeItem {
     constructor(
+        public readonly node: SyntaxNode,
         public readonly label: string,
         public readonly collapsibleState: vscode.TreeItemCollapsibleState
     ) {

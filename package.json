@@ -34,7 +34,7 @@
       "tree-explorer": [
         {
           "id": "tree-view",
-          "name": "Tree"
+          "name": "AST"
         }
       ]
     }

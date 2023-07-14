@@ -245,8 +245,8 @@ var __importStar = (this && this.__importStar) || function (mod) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ASTProvider = void 0;
 const vscode = __importStar(__webpack_require__(1));
-const fs = __importStar(__webpack_require__(4));
 const path = __importStar(__webpack_require__(5));
+// Docs: https://code.visualstudio.com/api/extension-guides/tree-view
 class ASTProvider {
     constructor(ast) {
         this.ast = ast;
@@ -255,22 +255,26 @@ class ASTProvider {
         return element;
     }
     getChildren(element) {
-        return Promise.resolve([]);
+        if (!this.ast) {
+            vscode.window.showInformationMessage("No AST available.");
+            return Promise.resolve([]);
+        }
+        else if (element) {
+            return Promise.resolve([this.nodeToTreeItem(this.ast.rootNode)]);
+        }
+        else {
+            return Promise.resolve([this.nodeToTreeItem(this.ast.rootNode)]);
+        }
     }
-    pathExists(p) {
-        try {
-            fs.accessSync(p);
-        }
-        catch (err) {
-            return false;
-        }
-        return true;
+    nodeToTreeItem(node) {
+        return new ASTNode(node, node.id.toString(), vscode.TreeItemCollapsibleState.Collapsed);
     }
 }
 exports.ASTProvider = ASTProvider;
 class ASTNode extends vscode.TreeItem {
-    constructor(label, collapsibleState) {
+    constructor(node, label, collapsibleState) {
         super(label, collapsibleState);
+        this.node = node;
         this.label = label;
         this.collapsibleState = collapsibleState;
         this.iconPath = {
