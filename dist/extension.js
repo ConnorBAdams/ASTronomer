@@ -54,22 +54,39 @@ function activate(context) {
     generate();
 }
 exports.activate = activate;
+function highlightText(node) {
+    console.log("Highlighting text");
+    const editor = vscode.window.activeTextEditor;
+    if (editor) {
+        const startPos = editor.document.positionAt(node.node.startIndex);
+        const endPos = editor.document.positionAt(node.node.endIndex);
+        const range = new vscode.Range(startPos, endPos);
+        editor.selection = new vscode.Selection(range.start, range.end);
+        editor.revealRange(range);
+    }
+}
 vscode.window.onDidChangeActiveTextEditor(() => {
     generate();
 });
 function generate() {
-    console.log('Generate called');
+    console.log("Generate called");
     if (!vscode.window.activeTextEditor) {
         // When changing tabs, the activeTextEditor will be undefined
         // to simplify error handling we'll just return. No AST to generate anyway
         return;
     }
     const astGenerator = new astGenerator_1.ASTGenerator();
-    astGenerator.getAST().then((tree) => {
+    astGenerator
+        .getAST()
+        .then((tree) => {
         if (tree) {
-            vscode.window.registerTreeDataProvider("tree-view", new astProvider_1.ASTProvider(tree));
+            const treeView = vscode.window.createTreeView("tree-view", {
+                treeDataProvider: new astProvider_1.ASTProvider(tree),
+            });
+            treeView.onDidChangeSelection((e) => highlightText(e.selection[0]));
         }
-    }).catch((err) => {
+    })
+        .catch((err) => {
         console.log(err);
     });
 }
@@ -252,7 +269,7 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.ASTProvider = void 0;
+exports.ASTNode = exports.ASTProvider = void 0;
 const vscode = __importStar(__webpack_require__(1));
 const path = __importStar(__webpack_require__(5));
 // Docs: https://code.visualstudio.com/api/extension-guides/tree-view
@@ -312,6 +329,7 @@ class ASTNode extends vscode.TreeItem {
         this.tooltip = `${this.node.text}`;
     }
 }
+exports.ASTNode = ASTNode;
 
 
 /***/ })

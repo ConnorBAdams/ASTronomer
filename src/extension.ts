@@ -3,6 +3,7 @@
 import * as vscode from "vscode";
 import { ASTGenerator } from "./astGenerator";
 import { ASTProvider } from "./astProvider";
+import { ASTNode } from "./astProvider";
 
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
@@ -24,7 +25,20 @@ export function activate(context: vscode.ExtensionContext) {
         }
     );
     context.subscriptions.push(disposable);
+
     generate();
+}
+
+function highlightText(node: ASTNode) {
+    console.log("Highlighting text");
+    const editor = vscode.window.activeTextEditor;
+    if (editor) {
+        const startPos = editor.document.positionAt(node.node.startIndex);
+        const endPos = editor.document.positionAt(node.node.endIndex);
+        const range = new vscode.Range(startPos, endPos);
+        editor.selection = new vscode.Selection(range.start, range.end);
+        editor.revealRange(range);
+    }
 }
 
 vscode.window.onDidChangeActiveTextEditor(() => {
@@ -32,23 +46,29 @@ vscode.window.onDidChangeActiveTextEditor(() => {
 });
 
 function generate() {
-    console.log('Generate called');
+    console.log("Generate called");
     if (!vscode.window.activeTextEditor) {
         // When changing tabs, the activeTextEditor will be undefined
         // to simplify error handling we'll just return. No AST to generate anyway
         return;
     }
     const astGenerator = new ASTGenerator();
-    astGenerator.getAST().then((tree) => {
-        if (tree) {
-            vscode.window.registerTreeDataProvider(
-                "tree-view",
-                new ASTProvider(tree)
-            );
-        }
-    }).catch((err) => {
-        console.log(err);
-    });
+    astGenerator
+        .getAST()
+        .then((tree) => {
+            if (tree) {
+                const treeView = vscode.window.createTreeView("tree-view", {
+                    treeDataProvider: new ASTProvider(tree),
+                });
+                treeView.onDidChangeSelection(
+                    (e: vscode.TreeViewSelectionChangeEvent<ASTNode>) =>
+                        highlightText(e.selection[0])
+                );
+            }
+        })
+        .catch((err) => {
+            console.log(err);
+        });
 }
 
 // This method is called when your extension is deactivated

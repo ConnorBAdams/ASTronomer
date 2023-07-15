@@ -38,7 +38,7 @@ export class ASTProvider implements vscode.TreeDataProvider<ASTNode> {
 	}
 }
 
-class ASTNode extends vscode.TreeItem {
+export class ASTNode extends vscode.TreeItem {
 	constructor(
 		public readonly node: SyntaxNode,
 		public readonly terminal: boolean = false,

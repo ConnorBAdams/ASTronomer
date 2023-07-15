@@ -19,6 +19,10 @@
       {
         "command": "treeviewer.reloadTree",
         "title": "Reload Tree"
+      },
+      {
+        "command": "treeviewer.viewInVisualizer",
+        "title": "View In Tree"
       }
     ],
     "viewsContainers": {
