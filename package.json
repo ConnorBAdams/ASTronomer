@@ -21,8 +21,12 @@
         "title": "Reload Tree"
       },
       {
-        "command": "treeviewer.viewInVisualizer",
-        "title": "View In Tree"
+        "command": "treeviewer.copyName",
+        "title": "Copy Name"
+      },
+      {
+        "command": "treeviewer.copySExpression",
+        "title": "Copy S-Expression"
       }
     ],
     "viewsContainers": {
@@ -39,6 +43,23 @@
         {
           "id": "tree-view",
           "name": "AST"
+        }
+      ]
+    },
+    "menus": {
+      "view/title": [
+        {
+          "command": "treeviewer.reloadTree",
+          "when": "view == tree-view",
+          "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "treeviewer.copyName"
+        },
+        {
+          "command": "treeviewer.copySExpression"
         }
       ]
     }

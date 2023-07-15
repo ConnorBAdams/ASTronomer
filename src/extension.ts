@@ -15,16 +15,27 @@ export function activate(context: vscode.ExtensionContext) {
     // The command has been defined in the package.json file
     // Now provide the implementation of the command with registerCommand
     // The commandId parameter must match the command field in package.json
-    let disposable = vscode.commands.registerCommand(
+    context.subscriptions.push(vscode.commands.registerCommand(
         "treeviewer.reloadTree",
         () => {
-            // The code you place here will be executed every time your command is executed
-            // Display a message box to the user
             vscode.window.showInformationMessage("Reload started");
             generate();
         }
-    );
-    context.subscriptions.push(disposable);
+    ));
+    context.subscriptions.push(vscode.commands.registerCommand(
+        "treeviewer.copyName",
+        (e: ASTNode) => {
+            vscode.window.showInformationMessage("Copied to Clipboard");
+            copyName(e);
+        }
+    ));
+    context.subscriptions.push(vscode.commands.registerCommand(
+        "treeviewer.copySExpression",
+        (e: ASTNode) => {
+            vscode.window.showInformationMessage("Copied to Clipboard");
+            copySExpression(e);
+        }
+    ));
 
     generate();
 }
@@ -39,6 +50,14 @@ function highlightText(node: ASTNode) {
         editor.selection = new vscode.Selection(range.start, range.end);
         editor.revealRange(range);
     }
+}
+
+function copyName(node: ASTNode) {
+    vscode.env.clipboard.writeText(node.node.type);
+}
+
+function copySExpression(node: ASTNode) {
+    vscode.env.clipboard.writeText(node.node.toString());
 }
 
 vscode.window.onDidChangeActiveTextEditor(() => {

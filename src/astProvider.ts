@@ -58,6 +58,8 @@ export class ASTNode extends vscode.TreeItem {
 		}
 
 		this.tooltip = `${this.node.text}`;
+
+        this.contextValue = this.terminal ? "terminal" : "nonterminal";
 	}
 
 	iconPath = {
