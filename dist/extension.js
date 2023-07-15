@@ -35,12 +35,14 @@ exports.deactivate = exports.activate = void 0;
 const vscode = __importStar(__webpack_require__(1));
 const astGenerator_1 = __webpack_require__(2);
 const astProvider_1 = __webpack_require__(6);
+const astProvider_2 = __webpack_require__(6);
+const astGenerator = new astGenerator_1.ASTGenerator();
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
 function activate(context) {
     // Use the console to output diagnostic information (console.log) and errors (console.error)
     // This line of code will only be executed once when your extension is activated
-    vscode.window.showInformationMessage("TreeViewer is running");
+    console.log("TreeViewer is now active!");
     // The command has been defined in the package.json file
     // Now provide the implementation of the command with registerCommand
     // The commandId parameter must match the command field in package.json
@@ -56,15 +58,19 @@ function activate(context) {
         vscode.window.showInformationMessage("Copied to Clipboard");
         copySExpression(e);
     }));
+    context.subscriptions.push(vscode.commands.registerCommand("treeviewer.runQuery", () => runQuery()));
     generate();
 }
 exports.activate = activate;
 function highlightText(node) {
+    if (node instanceof astProvider_2.ASTNode) {
+        node = node.node;
+    }
     console.log("Highlighting text");
     const editor = vscode.window.activeTextEditor;
     if (editor) {
-        const startPos = editor.document.positionAt(node.node.startIndex);
-        const endPos = editor.document.positionAt(node.node.endIndex);
+        const startPos = editor.document.positionAt(node.startIndex);
+        const endPos = editor.document.positionAt(node.endIndex);
         const range = new vscode.Range(startPos, endPos);
         editor.selection = new vscode.Selection(range.start, range.end);
         editor.revealRange(range);
@@ -76,19 +82,34 @@ function copyName(node) {
 function copySExpression(node) {
     vscode.env.clipboard.writeText(node.node.toString());
 }
+async function runQuery() {
+    let expression = await vscode.window.showInputBox({
+        prompt: "Enter query expression",
+        placeHolder: "Enter query expression",
+    });
+    console.log("Querying: " + expression);
+    if (expression !== undefined) {
+        astGenerator.queryAST(expression).then((result) => {
+            console.log(result);
+            if (result.length > 0) {
+                highlightText(result[0]);
+            }
+        });
+    }
+}
 vscode.window.onDidChangeActiveTextEditor(() => {
     generate();
 });
-function generate() {
+// Generate the AST for the tree-view
+function generate(forceRebuild) {
     console.log("Generate called");
     if (!vscode.window.activeTextEditor) {
         // When changing tabs, the activeTextEditor will be undefined
         // to simplify error handling we'll just return. No AST to generate anyway
         return;
     }
-    const astGenerator = new astGenerator_1.ASTGenerator();
     astGenerator
-        .getAST()
+        .getAST(forceRebuild)
         .then((tree) => {
         if (tree) {
             const treeView = vscode.window.createTreeView("tree-view", {
@@ -204,7 +225,6 @@ class ASTGenerator {
             // If no current AST then create one
             let currentDoc = await this.getCurrentFile();
             let tree = this.fileASTs.get(currentDoc.fileName.toString().toLocaleLowerCase());
-            console.log("Current AST: " + currentDoc.fileName);
             if (tree === undefined || forceRebuild) {
                 // If no parser then create one
                 if (!this.parser) {
@@ -222,6 +242,26 @@ class ASTGenerator {
             }
             else {
                 resolve(tree);
+            }
+        });
+    }
+    async queryAST(query) {
+        return new Promise(async (resolve, reject) => {
+            const tree = await this.getAST();
+            try {
+                let queryResult = await this.parser.language.query(query);
+                let queryObj = await queryResult.captures(tree.rootNode);
+                if (queryObj) {
+                    resolve(queryObj);
+                }
+                else {
+                    reject("Could not parse the query");
+                }
+            }
+            catch (e) {
+                console.log(e);
+                vscode.window.showErrorMessage(e.message);
+                reject("Could not parse the query");
             }
         });
     }

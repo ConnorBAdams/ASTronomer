@@ -27,6 +27,10 @@
       {
         "command": "treeviewer.copySExpression",
         "title": "Copy S-Expression"
+      },
+      {
+        "command": "treeviewer.runQuery",
+        "title": "Run Query"
       }
     ],
     "viewsContainers": {
@@ -50,6 +54,11 @@
       "view/title": [
         {
           "command": "treeviewer.reloadTree",
+          "when": "view == tree-view",
+          "group": "navigation"
+        },
+        {
+          "command": "treeviewer.runQuery",
           "when": "view == tree-view",
           "group": "navigation"
         }

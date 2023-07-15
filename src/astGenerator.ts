@@ -1,8 +1,9 @@
 const Parser = require("web-tree-sitter");
-import { Tree, Language } from "web-tree-sitter";
+import { Tree, Language, SyntaxNode } from "web-tree-sitter";
 import { resolve as resolvePath } from "path";
 import * as vscode from "vscode";
 import { TextDocument } from "vscode";
+import { ASTNode } from "./astProvider";
 
 export class ASTGenerator {
     private parser: any;
@@ -68,12 +69,15 @@ export class ASTGenerator {
         return new Promise(async (resolve, reject) => {
             // If no current AST then create one
             let currentDoc = await this.getCurrentFile();
-            let tree = this.fileASTs.get(currentDoc.fileName.toString().toLocaleLowerCase());
-            console.log("Current AST: " + currentDoc.fileName);
+            let tree = this.fileASTs.get(
+                currentDoc.fileName.toString().toLocaleLowerCase()
+            );
             if (tree === undefined || forceRebuild) {
                 // If no parser then create one
                 if (!this.parser) {
-                    this.parser = await this.createParser(currentDoc.languageId);
+                    this.parser = await this.createParser(
+                        currentDoc.languageId
+                    );
                 }
                 // Generate the AST
                 tree = await this.parser.parse(currentDoc.getText());
@@ -85,6 +89,25 @@ export class ASTGenerator {
                 }
             } else {
                 resolve(tree);
+            }
+        });
+    }
+
+    public async queryAST(query: string): Promise<SyntaxNode[]> {
+        return new Promise(async (resolve, reject) => {
+            const tree = await this.getAST();
+            try {
+                let queryResult = await this.parser.language.query(query);
+                let queryObj = await queryResult.captures(tree.rootNode);
+                if (queryObj) {
+                    resolve(queryObj);
+                } else {
+                    reject("Could not parse the query");
+                }
+            } catch (e: any) {
+                console.log(e);
+                vscode.window.showErrorMessage(e.message);
+                reject("Could not parse the query");
             }
         });
     }
