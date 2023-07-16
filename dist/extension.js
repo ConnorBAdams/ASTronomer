@@ -39,22 +39,22 @@ const astProvider_2 = __webpack_require__(6);
 const astGenerator = new astGenerator_1.ASTGenerator();
 let lineNumbersEnabled = false;
 function activate(context) {
-    console.log("TreeViewer is now active!");
-    context.subscriptions.push(vscode.commands.registerCommand("treeviewer.reloadTree", () => {
+    console.log("ASTronomer is now active!");
+    context.subscriptions.push(vscode.commands.registerCommand("astronomer.reloadTree", () => {
         vscode.window.showInformationMessage("Reload started");
         generate();
     }));
-    context.subscriptions.push(vscode.commands.registerCommand("treeviewer.copyName", (e) => {
+    context.subscriptions.push(vscode.commands.registerCommand("astronomer.copyName", (e) => {
         vscode.window.showInformationMessage("Copied to Clipboard");
         copyName(e);
     }));
-    context.subscriptions.push(vscode.commands.registerCommand("treeviewer.copySExpression", (e) => {
+    context.subscriptions.push(vscode.commands.registerCommand("astronomer.copySExpression", (e) => {
         vscode.window.showInformationMessage("Copied to Clipboard");
         copySExpression(e);
     }));
-    context.subscriptions.push(vscode.commands.registerCommand("treeviewer.runQuery", () => runQuery()));
-    context.subscriptions.push(vscode.commands.registerCommand("treeviewer.toggleLineNumbers", () => toggleLineNumbers()));
-    context.subscriptions.push(vscode.commands.registerCommand("treeviewer.registerCustomWASM", () => registerCustomWASM()));
+    context.subscriptions.push(vscode.commands.registerCommand("astronomer.runQuery", () => runQuery()));
+    context.subscriptions.push(vscode.commands.registerCommand("astronomer.toggleLineNumbers", () => toggleLineNumbers()));
+    context.subscriptions.push(vscode.commands.registerCommand("astronomer.registerCustomWASM", () => registerCustomWASM()));
     vscode.window.onDidChangeActiveTextEditor(() => {
         generate(false);
     });

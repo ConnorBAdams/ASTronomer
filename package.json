@@ -1,6 +1,6 @@
 {
-  "name": "treeviewer",
-  "displayName": "TreeViewer",
+  "name": "astronomer",
+  "displayName": "ASTRonomer",
   "description": "A tool for rendering TreeSitter ASTs",
   "version": "0.0.1",
   "engines": {
@@ -17,27 +17,27 @@
   "contributes": {
     "commands": [
       {
-        "command": "treeviewer.reloadTree",
+        "command": "astronomer.reloadTree",
         "title": "Reload Tree"
       },
       {
-        "command": "treeviewer.copyName",
+        "command": "astronomer.copyName",
         "title": "Copy Name"
       },
       {
-        "command": "treeviewer.copySExpression",
+        "command": "astronomer.copySExpression",
         "title": "Copy S-Expression"
       },
       {
-        "command": "treeviewer.runQuery",
+        "command": "astronomer.runQuery",
         "title": "Run Query"
       }, 
       {
-        "command": "treeviewer.toggleLineNumbers",
+        "command": "astronomer.toggleLineNumbers",
         "title": "Toggle Line Numbers"
       },
       {
-        "command": "treeviewer.registerCustomWASM",
+        "command": "astronomer.registerCustomWASM",
         "title": "Register a Custom Language WASM"
       }
     ],
@@ -45,8 +45,8 @@
       "activitybar": [
         {
           "id": "tree-explorer",
-          "title": "Tree Explorer",
-          "icon": "tree-sitter-small.png"
+          "title": "ASTronomer",
+          "icon": "img/tree-sitter-small.png"
         }
       ]
     },
@@ -61,32 +61,32 @@
     "menus": {
       "view/title": [
         {
-          "command": "treeviewer.reloadTree",
+          "command": "astronomer.reloadTree",
           "when": "view == tree-view",
           "group": "navigation"
         },
         {
-          "command": "treeviewer.runQuery",
+          "command": "astronomer.runQuery",
           "when": "view == tree-view",
           "group": "navigation"
         },
         {
-          "command": "treeviewer.toggleLineNumbers",
+          "command": "astronomer.toggleLineNumbers",
           "when": "view == tree-view",
           "group": "4_search"
         },
         {
-          "command": "treeviewer.registerCustomWASM",
+          "command": "astronomer.registerCustomWASM",
           "when": "view == tree-view",
           "group": "4_search"
         }
       ],
       "view/item/context": [
         {
-          "command": "treeviewer.copyName"
+          "command": "astronomer.copyName"
         },
         {
-          "command": "treeviewer.copySExpression"
+          "command": "astronomer.copySExpression"
         }
       ]
     }

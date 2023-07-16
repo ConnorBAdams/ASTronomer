@@ -10,23 +10,23 @@ const astGenerator = new ASTGenerator();
 let lineNumbersEnabled: boolean = false;
 
 export function activate(context: vscode.ExtensionContext) {
-    console.log("TreeViewer is now active!");
+    console.log("ASTronomer is now active!");
 
     context.subscriptions.push(
-        vscode.commands.registerCommand("treeviewer.reloadTree", () => {
+        vscode.commands.registerCommand("astronomer.reloadTree", () => {
             vscode.window.showInformationMessage("Reload started");
             generate();
         })
     );
     context.subscriptions.push(
-        vscode.commands.registerCommand("treeviewer.copyName", (e: ASTNode) => {
+        vscode.commands.registerCommand("astronomer.copyName", (e: ASTNode) => {
             vscode.window.showInformationMessage("Copied to Clipboard");
             copyName(e);
         })
     );
     context.subscriptions.push(
         vscode.commands.registerCommand(
-            "treeviewer.copySExpression",
+            "astronomer.copySExpression",
             (e: ASTNode) => {
                 vscode.window.showInformationMessage("Copied to Clipboard");
                 copySExpression(e);
@@ -34,13 +34,13 @@ export function activate(context: vscode.ExtensionContext) {
         )
     );
     context.subscriptions.push(
-        vscode.commands.registerCommand("treeviewer.runQuery", () => runQuery())
+        vscode.commands.registerCommand("astronomer.runQuery", () => runQuery())
     );
     context.subscriptions.push(
-        vscode.commands.registerCommand("treeviewer.toggleLineNumbers", () => toggleLineNumbers())
+        vscode.commands.registerCommand("astronomer.toggleLineNumbers", () => toggleLineNumbers())
     );
     context.subscriptions.push(
-        vscode.commands.registerCommand("treeviewer.registerCustomWASM", () => registerCustomWASM())
+        vscode.commands.registerCommand("astronomer.registerCustomWASM", () => registerCustomWASM())
     );
     vscode.window.onDidChangeActiveTextEditor(() => {
         generate(false);
