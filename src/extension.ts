@@ -7,17 +7,11 @@ import { ASTNode } from "./astProvider";
 import { SyntaxNode } from "web-tree-sitter";
 
 const astGenerator = new ASTGenerator();
+let lineNumbersEnabled: boolean = false;
 
-// This method is called when your extension is activated
-// Your extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
-    // Use the console to output diagnostic information (console.log) and errors (console.error)
-    // This line of code will only be executed once when your extension is activated
     console.log("TreeViewer is now active!");
 
-    // The command has been defined in the package.json file
-    // Now provide the implementation of the command with registerCommand
-    // The commandId parameter must match the command field in package.json
     context.subscriptions.push(
         vscode.commands.registerCommand("treeviewer.reloadTree", () => {
             vscode.window.showInformationMessage("Reload started");
@@ -43,8 +37,14 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.commands.registerCommand("treeviewer.runQuery", () => runQuery())
     );
     context.subscriptions.push(
+        vscode.commands.registerCommand("treeviewer.toggleLineNumbers", () => toggleLineNumbers())
+    );
+    context.subscriptions.push(
         vscode.commands.registerCommand("treeviewer.registerCustomWASM", () => registerCustomWASM())
     );
+    vscode.window.onDidChangeActiveTextEditor(() => {
+        generate(false);
+    });
 
     generate();
 }
@@ -62,6 +62,11 @@ function highlightText(node: ASTNode | SyntaxNode) {
         editor.selection = new vscode.Selection(range.start, range.end);
         editor.revealRange(range);
     }
+}
+
+function toggleLineNumbers() {
+    lineNumbersEnabled = !lineNumbersEnabled;
+    generate(true);
 }
 
 function copyName(node: ASTNode) {
@@ -121,34 +126,22 @@ async function iterateOverResults(results: SyntaxNode[]) {
     }
 }
 
-vscode.window.onDidChangeActiveTextEditor(() => {
-    generate(false);
-});
-
 // Generate the AST for the tree-view
-function generate(forceRebuild?: boolean) {
+async function generate(forceRebuild?: boolean) {
     console.log("Generate called");
     if (!vscode.window.activeTextEditor) {
         // When changing tabs, the activeTextEditor will be undefined
         // to simplify error handling we'll just return. No AST to generate anyway
         return;
     }
-    astGenerator
-        .getAST(forceRebuild)
-        .then((tree) => {
-            if (tree) {
-                const treeView = vscode.window.createTreeView("tree-view", {
-                    treeDataProvider: new ASTProvider(tree),
-                });
-                treeView.onDidChangeSelection(
-                    (e: vscode.TreeViewSelectionChangeEvent<ASTNode>) =>
-                        highlightText(e.selection[0])
-                );
-            }
-        })
-        .catch((err) => {
-            console.log(err);
-        });
+    const tree = await astGenerator.getAST(forceRebuild);
+    const treeView = vscode.window.createTreeView("tree-view", {
+        treeDataProvider: new ASTProvider(tree, lineNumbersEnabled),
+    });
+    treeView.onDidChangeSelection(
+        (e: vscode.TreeViewSelectionChangeEvent<ASTNode>) =>
+            highlightText(e.selection[0])
+    );
 }
 
 // This method is called when your extension is deactivated

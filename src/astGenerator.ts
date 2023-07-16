@@ -37,7 +37,7 @@ export class ASTGenerator {
     public userSuppliedWASMs = new Map<string, string>();
 
     // TODO: Figure out how to reuse a parser if the language is the same
-    private async createParser(langName: string): Promise<any> {
+    private async createParser(langName: string): Promise<typeof Parser> {
         return new Promise(async (resolve, reject) => {
             console.log("Creating parser for language: " + langName);
             await Parser.init();

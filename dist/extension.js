@@ -37,15 +37,9 @@ const astGenerator_1 = __webpack_require__(2);
 const astProvider_1 = __webpack_require__(6);
 const astProvider_2 = __webpack_require__(6);
 const astGenerator = new astGenerator_1.ASTGenerator();
-// This method is called when your extension is activated
-// Your extension is activated the very first time the command is executed
+let lineNumbersEnabled = false;
 function activate(context) {
-    // Use the console to output diagnostic information (console.log) and errors (console.error)
-    // This line of code will only be executed once when your extension is activated
     console.log("TreeViewer is now active!");
-    // The command has been defined in the package.json file
-    // Now provide the implementation of the command with registerCommand
-    // The commandId parameter must match the command field in package.json
     context.subscriptions.push(vscode.commands.registerCommand("treeviewer.reloadTree", () => {
         vscode.window.showInformationMessage("Reload started");
         generate();
@@ -59,7 +53,11 @@ function activate(context) {
         copySExpression(e);
     }));
     context.subscriptions.push(vscode.commands.registerCommand("treeviewer.runQuery", () => runQuery()));
+    context.subscriptions.push(vscode.commands.registerCommand("treeviewer.toggleLineNumbers", () => toggleLineNumbers()));
     context.subscriptions.push(vscode.commands.registerCommand("treeviewer.registerCustomWASM", () => registerCustomWASM()));
+    vscode.window.onDidChangeActiveTextEditor(() => {
+        generate(false);
+    });
     generate();
 }
 exports.activate = activate;
@@ -76,6 +74,10 @@ function highlightText(node) {
         editor.selection = new vscode.Selection(range.start, range.end);
         editor.revealRange(range);
     }
+}
+function toggleLineNumbers() {
+    lineNumbersEnabled = !lineNumbersEnabled;
+    generate(true);
 }
 function copyName(node) {
     vscode.env.clipboard.writeText(node.node.type);
@@ -127,30 +129,19 @@ async function iterateOverResults(results) {
         }
     }
 }
-vscode.window.onDidChangeActiveTextEditor(() => {
-    generate(false);
-});
 // Generate the AST for the tree-view
-function generate(forceRebuild) {
+async function generate(forceRebuild) {
     console.log("Generate called");
     if (!vscode.window.activeTextEditor) {
         // When changing tabs, the activeTextEditor will be undefined
         // to simplify error handling we'll just return. No AST to generate anyway
         return;
     }
-    astGenerator
-        .getAST(forceRebuild)
-        .then((tree) => {
-        if (tree) {
-            const treeView = vscode.window.createTreeView("tree-view", {
-                treeDataProvider: new astProvider_1.ASTProvider(tree),
-            });
-            treeView.onDidChangeSelection((e) => highlightText(e.selection[0]));
-        }
-    })
-        .catch((err) => {
-        console.log(err);
+    const tree = await astGenerator.getAST(forceRebuild);
+    const treeView = vscode.window.createTreeView("tree-view", {
+        treeDataProvider: new astProvider_1.ASTProvider(tree, lineNumbersEnabled),
     });
+    treeView.onDidChangeSelection((e) => highlightText(e.selection[0]));
 }
 // This method is called when your extension is deactivated
 function deactivate() { }
@@ -371,8 +362,12 @@ const vscode = __importStar(__webpack_require__(1));
 const path = __importStar(__webpack_require__(5));
 // Docs: https://code.visualstudio.com/api/extension-guides/tree-view
 class ASTProvider {
-    constructor(ast) {
+    constructor(ast, lineNumbers) {
+        this.lineNumbers = false;
         this.ast = ast;
+        if (lineNumbers) {
+            this.lineNumbers = lineNumbers;
+        }
     }
     getTreeItem(element) {
         return element;
@@ -388,7 +383,9 @@ class ASTProvider {
             }
             let children = element.node.children;
             if (children.length === 0) {
-                return Promise.resolve([new ASTNode(element.node, true, vscode.TreeItemCollapsibleState.None)]);
+                return Promise.resolve([
+                    new ASTNode(element.node, this.lineNumbers, true, vscode.TreeItemCollapsibleState.None),
+                ]);
             }
             return Promise.resolve(element.node.children.map((node) => this.nodeToTreeItem(node)));
         }
@@ -397,15 +394,16 @@ class ASTProvider {
         }
     }
     nodeToTreeItem(node) {
-        return new ASTNode(node);
+        return new ASTNode(node, this.lineNumbers);
     }
 }
 exports.ASTProvider = ASTProvider;
 class ASTNode extends vscode.TreeItem {
-    constructor(node, terminal = false, collapsibleState = vscode
+    constructor(node, lineNumbers = false, terminal = false, collapsibleState = vscode
         .TreeItemCollapsibleState.Collapsed, label = node.type) {
         super(label, collapsibleState);
         this.node = node;
+        this.lineNumbers = lineNumbers;
         this.terminal = terminal;
         this.collapsibleState = collapsibleState;
         this.label = label;
@@ -413,15 +411,22 @@ class ASTNode extends vscode.TreeItem {
             light: path.join(__filename, "..", "..", "resources", "light", "dependency.svg"),
             dark: path.join(__filename, "..", "..", "resources", "dark", "dependency.svg"),
         };
+        // TODO: Clean up this logic
         if (this.terminal) {
             this.label = `"${this.node.text}"`;
         }
-        // Check if multiline
-        else if (this.node.startPosition.row !== this.node.endPosition.row) {
-            this.label = `${this.label}: lines ${this.node.startPosition.row} - ${this.node.endPosition.row}`;
+        else if (lineNumbers) {
+            // If line numbers are enabled then show the line numbers
+            if (this.node.startPosition.row !== this.node.endPosition.row &&
+                this.lineNumbers) {
+                this.label = `${this.label}  :  lines ${this.node.startPosition.row} - ${this.node.endPosition.row}`;
+            }
+            else {
+                this.label = `${this.label}  :  chars ${this.node.startPosition.column} - ${this.node.endPosition.column}`;
+            }
         }
         else {
-            this.label = `${this.label}: chars ${this.node.startPosition.column} - ${this.node.endPosition.column}`;
+            this.label = `${this.label}`;
         }
         this.tooltip = `${this.node.text}`;
         this.contextValue = this.terminal ? "terminal" : "nonterminal";
