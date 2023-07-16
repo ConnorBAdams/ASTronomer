@@ -36,6 +36,7 @@ const vscode = __importStar(__webpack_require__(1));
 const astGenerator_1 = __webpack_require__(2);
 const astProvider_1 = __webpack_require__(6);
 const astProvider_2 = __webpack_require__(6);
+const testWebView_1 = __webpack_require__(7);
 const astGenerator = new astGenerator_1.ASTGenerator();
 let lineNumbersEnabled = false;
 function activate(context) {
@@ -58,6 +59,8 @@ function activate(context) {
     vscode.window.onDidChangeActiveTextEditor(() => {
         generate(false);
     });
+    const provider = new testWebView_1.QueryTest(context.extensionUri);
+    context.subscriptions.push(vscode.window.registerWebviewViewProvider(testWebView_1.QueryTest.viewType, provider));
     generate();
 }
 exports.activate = activate;
@@ -433,6 +436,92 @@ class ASTNode extends vscode.TreeItem {
     }
 }
 exports.ASTNode = ASTNode;
+
+
+/***/ }),
+/* 7 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.QueryTest = void 0;
+const vscode = __importStar(__webpack_require__(1));
+class QueryTest {
+    constructor(_extensionUri) {
+        this._extensionUri = _extensionUri;
+    }
+    resolveWebviewView(webviewView, context, _token) {
+        this._view = webviewView;
+        webviewView.webview.html = this.getWebviewContent(webviewView.webview);
+    }
+    getWebviewContent(webview) {
+        // Get the local path to main script run in the webview, then convert it to a uri we can use in the webview.
+        const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'media', 'main.js'));
+        // Do the same for the stylesheet.
+        const styleResetUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'media', 'reset.css'));
+        const styleVSCodeUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'media', 'vscode.css'));
+        const styleMainUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'media', 'main.css'));
+        console.log(styleMainUri);
+        const nonce = this.getNonce();
+        return `<!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+
+        <!--
+            Use a content security policy to only allow loading styles from our extension directory,
+            and only allow scripts that have a specific nonce.
+            (See the 'webview-sample' extension sample for img-src content security policy examples)
+        -->
+        <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource}; script-src 'nonce-${nonce}';">
+
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <link href="${styleResetUri.path}" rel="stylesheet">
+        <link href="${styleVSCodeUri.path}" rel="stylesheet">
+        <link href="${styleMainUri.path}" rel="stylesheet">
+    </head>
+    <body>
+        <textarea type="text" id="query" name="query" rel="stylesheet"></textarea>
+        <button id="runQuery" rel="stylesheet">Run Query</button>
+        <h1>Test</h1>
+    </body>
+    </html>`;
+    }
+    getNonce() {
+        let text = '';
+        const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789()@#$%^&*';
+        for (let i = 0; i < 32; i++) {
+            text += possible.charAt(Math.floor(Math.random() * possible.length));
+        }
+        return text;
+    }
+}
+exports.QueryTest = QueryTest;
+QueryTest.viewType = 'tree-view-web';
 
 
 /***/ })

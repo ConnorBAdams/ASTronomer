@@ -5,6 +5,7 @@ import { ASTGenerator } from "./astGenerator";
 import { ASTProvider } from "./astProvider";
 import { ASTNode } from "./astProvider";
 import { SyntaxNode } from "web-tree-sitter";
+import { QueryTest } from "./testWebView";
 
 const astGenerator = new ASTGenerator();
 let lineNumbersEnabled: boolean = false;
@@ -45,6 +46,11 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.window.onDidChangeActiveTextEditor(() => {
         generate(false);
     });
+
+    const provider = new QueryTest(context.extensionUri);
+
+	context.subscriptions.push(
+		vscode.window.registerWebviewViewProvider(QueryTest.viewType, provider));
 
     generate();
 }

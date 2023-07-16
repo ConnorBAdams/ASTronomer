@@ -1,7 +1,7 @@
 {
   "name": "astronomer",
   "displayName": "ASTRonomer",
-  "description": "A tool for rendering TreeSitter ASTs",
+  "description": "A tool for rendering and interacting with TreeSitter ASTs",
   "version": "0.0.1",
   "engines": {
     "vscode": "^1.80.0",
@@ -55,6 +55,11 @@
         {
           "id": "tree-view",
           "name": "AST"
+        },
+        {
+          "id": "tree-view-web",
+          "name": "AST-Query",
+          "type": "webview"
         }
       ]
     },
