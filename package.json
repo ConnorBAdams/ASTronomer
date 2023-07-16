@@ -31,6 +31,10 @@
       {
         "command": "treeviewer.runQuery",
         "title": "Run Query"
+      }, 
+      {
+        "command": "treeviewer.registerCustomWASM",
+        "title": "Register a Custom Language WASM"
       }
     ],
     "viewsContainers": {
@@ -61,6 +65,11 @@
           "command": "treeviewer.runQuery",
           "when": "view == tree-view",
           "group": "navigation"
+        },
+        {
+          "command": "treeviewer.registerCustomWASM",
+          "when": "view == tree-view",
+          "group": "4_search"
         }
       ],
       "view/item/context": [

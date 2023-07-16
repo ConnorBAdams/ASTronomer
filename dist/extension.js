@@ -59,6 +59,7 @@ function activate(context) {
         copySExpression(e);
     }));
     context.subscriptions.push(vscode.commands.registerCommand("treeviewer.runQuery", () => runQuery()));
+    context.subscriptions.push(vscode.commands.registerCommand("treeviewer.registerCustomWASM", () => registerCustomWASM()));
     generate();
 }
 exports.activate = activate;
@@ -66,7 +67,7 @@ function highlightText(node) {
     if (node instanceof astProvider_2.ASTNode) {
         node = node.node;
     }
-    console.log("Highlighting text");
+    console.log("Highlighting text" + node.startIndex + " " + node.endIndex);
     const editor = vscode.window.activeTextEditor;
     if (editor) {
         const startPos = editor.document.positionAt(node.startIndex);
@@ -84,21 +85,50 @@ function copySExpression(node) {
 }
 async function runQuery() {
     let expression = await vscode.window.showInputBox({
-        prompt: "Enter query expression",
+        prompt: "Enter query expression - do not include an @ identifier",
         placeHolder: "Enter query expression",
     });
     console.log("Querying: " + expression);
     if (expression !== undefined) {
-        astGenerator.queryAST(expression).then((result) => {
-            console.log(result);
-            if (result.length > 0) {
-                highlightText(result[0]);
-            }
+        expression += " @query";
+        astGenerator.queryAST(expression).then((results) => {
+            iterateOverResults(results);
         });
     }
 }
+async function registerCustomWASM() {
+    let fileType = await vscode.window.showInputBox({
+        prompt: "Enter the name of the file type you wish to regiter",
+        placeHolder: "Example: python, c_sharp, javascript, etc",
+    });
+    if (fileType !== undefined) {
+        const selectedFile = await vscode.window.showOpenDialog();
+        if (selectedFile !== undefined) {
+            astGenerator.setCustomWASM(fileType, selectedFile[0].fsPath);
+        }
+    }
+}
+async function iterateOverResults(results) {
+    let currentIndex = 0;
+    while (currentIndex < results.length) {
+        console.log(results[currentIndex].toString());
+        highlightText(results[currentIndex]);
+        if (currentIndex < results.length - 1) {
+            let answer = await vscode.window.showInformationMessage("View next result?", "Yes", "No");
+            if (answer === "Yes") {
+                currentIndex += 1;
+            }
+            else {
+                break;
+            }
+        }
+        else {
+            break;
+        }
+    }
+}
 vscode.window.onDidChangeActiveTextEditor(() => {
-    generate();
+    generate(false);
 });
 // Generate the AST for the tree-view
 function generate(forceRebuild) {
@@ -172,41 +202,49 @@ const vscode = __importStar(__webpack_require__(1));
 class ASTGenerator {
     constructor() {
         this.fileASTs = new Map();
-        this.langLookup = [
-            { name: "bash", path: "tree-sitter-bash.wasm" },
-            { name: "c_sharp", path: "tree-sitter-c_sharp.wasm" },
-            { name: "c", path: "tree-sitter-c.wasm" },
-            { name: "cpp", path: "tree-sitter-cpp.wasm" },
-            { name: "go", path: "tree-sitter-go.wasm" },
-            { name: "html", path: "tree-sitter-html.wasm" },
-            { name: "java", path: "tree-sitter-java.wasm" },
-            { name: "javascript", path: "tree-sitter-javascript.wasm" },
-            { name: "php", path: "tree-sitter-php.wasm" },
-            { name: "python", path: "tree-sitter-python.wasm" },
-            { name: "ql", path: "tree-sitter-ql.wasm" },
-            { name: "ruby", path: "tree-sitter-ruby.wasm" },
-            { name: "rust", path: "tree-sitter-rust.wasm" },
-            { name: "toml", path: "tree-sitter-toml.wasm" },
-            { name: "typescript", path: "tree-sitter-typescript.wasm" },
-            { name: "yaml", path: "tree-sitter-yaml.wasm" },
-        ];
+        this.langLookup = new Map([
+            ["bash", "tree-sitter-bash.wasm"],
+            ["c_sharp", "tree-sitter-c_sharp.wasm"],
+            ["c", "tree-sitter-c.wasm"],
+            ["cpp", "tree-sitter-cpp.wasm"],
+            ["go", "tree-sitter-go.wasm"],
+            ["html", "tree-sitter-html.wasm"],
+            ["java", "tree-sitter-java.wasm"],
+            ["javascript", "tree-sitter-javascript.wasm"],
+            ["php", "tree-sitter-php.wasm"],
+            ["python", "tree-sitter-python.wasm"],
+            ["ql", "tree-sitter-ql.wasm"],
+            ["ruby", "tree-sitter-ruby.wasm"],
+            ["rust", "tree-sitter-rust.wasm"],
+            ["toml", "tree-sitter-toml.wasm"],
+            ["typescript", "tree-sitter-typescript.wasm"],
+            ["yaml", "tree-sitter-yaml.wasm"],
+        ]);
+        this.userSuppliedWASMs = new Map();
     }
+    // TODO: Figure out how to reuse a parser if the language is the same
     async createParser(langName) {
         return new Promise(async (resolve, reject) => {
             console.log("Creating parser for language: " + langName);
             await Parser.init();
             this.parser = new Parser();
             // Get the path from the language lookup
-            const langPath = this.langLookup.find((lang) => lang.name === langName)?.path;
-            if (!langPath) {
+            let langPath = this.langLookup.get(langName);
+            // Check if the user has supplied a custom wasm
+            if (this.userSuppliedWASMs.has(langName)) {
+                langPath = this.userSuppliedWASMs.get(langName);
+            }
+            if (langPath === undefined) {
                 reject("Could not find the language");
             }
-            // The path needs to be relative to the build root
-            const path = (0, path_1.resolve)(__dirname, "..", "dist/tree-sitter/", `${langPath}`);
-            const language = await web_tree_sitter_1.Language.load(path);
-            this.parser.setLanguage(language);
-            console.log("Finished creating Parser");
-            resolve(this.parser);
+            else {
+                // The path needs to be relative to the build root
+                const path = (0, path_1.resolve)(__dirname, "..", "dist/tree-sitter/", `${langPath}`);
+                const language = await web_tree_sitter_1.Language.load(path);
+                this.parser.setLanguage(language);
+                console.log("Finished creating Parser");
+                resolve(this.parser);
+            }
         });
     }
     async getCurrentFile() {
@@ -226,10 +264,9 @@ class ASTGenerator {
             let currentDoc = await this.getCurrentFile();
             let tree = this.fileASTs.get(currentDoc.fileName.toString().toLocaleLowerCase());
             if (tree === undefined || forceRebuild) {
+                console.log("Building AST");
                 // If no parser then create one
-                if (!this.parser) {
-                    this.parser = await this.createParser(currentDoc.languageId);
-                }
+                this.parser = await this.createParser(currentDoc.languageId);
                 // Generate the AST
                 tree = await this.parser.parse(currentDoc.getText());
                 if (tree) {
@@ -252,7 +289,8 @@ class ASTGenerator {
                 let queryResult = await this.parser.language.query(query);
                 let queryObj = await queryResult.captures(tree.rootNode);
                 if (queryObj) {
-                    resolve(queryObj);
+                    let nodes = queryObj.map((node) => node.node);
+                    resolve(nodes);
                 }
                 else {
                     reject("Could not parse the query");
@@ -264,6 +302,14 @@ class ASTGenerator {
                 reject("Could not parse the query");
             }
         });
+    }
+    setCustomWASM(langName, path) {
+        // Remove the language from the lookup in favor of the user's
+        if (this.langLookup.has(langName)) {
+            this.langLookup.delete(langName);
+        }
+        console.log("Setting custom WASM for language: " + langName);
+        this.userSuppliedWASMs.set(langName, path);
     }
 }
 exports.ASTGenerator = ASTGenerator;

@@ -42,6 +42,9 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(
         vscode.commands.registerCommand("treeviewer.runQuery", () => runQuery())
     );
+    context.subscriptions.push(
+        vscode.commands.registerCommand("treeviewer.registerCustomWASM", () => registerCustomWASM())
+    );
 
     generate();
 }
@@ -50,7 +53,7 @@ function highlightText(node: ASTNode | SyntaxNode) {
     if (node instanceof ASTNode) {
         node = node.node;
     }
-    console.log("Highlighting text");
+    console.log("Highlighting text" + node.startIndex + " " + node.endIndex);
     const editor = vscode.window.activeTextEditor;
     if (editor) {
         const startPos = editor.document.positionAt(node.startIndex);
@@ -71,22 +74,55 @@ function copySExpression(node: ASTNode) {
 
 async function runQuery() {
     let expression = await vscode.window.showInputBox({
-        prompt: "Enter query expression",
+        prompt: "Enter query expression - do not include an @ identifier",
         placeHolder: "Enter query expression",
     });
     console.log("Querying: " + expression);
     if (expression !== undefined) {
-        astGenerator.queryAST(expression).then((result) => {
-            console.log(result);
-            if (result.length > 0) {
-                highlightText(result[0]);
-            }
+        expression += " @query";
+        astGenerator.queryAST(expression).then((results) => {
+            iterateOverResults(results);
         });
     }
 }
 
+async function registerCustomWASM() {
+    let fileType = await vscode.window.showInputBox({
+        prompt: "Enter the name of the file type you wish to regiter",
+        placeHolder: "Example: python, c_sharp, javascript, etc",
+    });
+    if (fileType !== undefined) {
+        const selectedFile = await vscode.window.showOpenDialog();
+        if (selectedFile !== undefined) {
+            astGenerator.setCustomWASM(fileType, selectedFile[0].fsPath);
+        }
+    }
+}
+
+async function iterateOverResults(results: SyntaxNode[]) {
+    let currentIndex = 0;
+    while (currentIndex < results.length) {
+        console.log(results[currentIndex].toString());
+        highlightText(results[currentIndex]);
+        if (currentIndex < results.length - 1) {
+            let answer = await vscode.window.showInformationMessage(
+                "View next result?",
+                "Yes",
+                "No"
+            );
+            if (answer === "Yes") {
+                currentIndex += 1;
+            } else {
+                break;
+            }
+        } else {
+            break;
+        }
+    }
+}
+
 vscode.window.onDidChangeActiveTextEditor(() => {
-    generate();
+    generate(false);
 });
 
 // Generate the AST for the tree-view

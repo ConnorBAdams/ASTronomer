@@ -5,41 +5,52 @@ import * as vscode from "vscode";
 import { TextDocument } from "vscode";
 import { ASTNode } from "./astProvider";
 
+
+interface QueryResult {
+    node: SyntaxNode;
+    name: string;
+}
+
 export class ASTGenerator {
     private parser: any;
     private fileASTs: Map<string, Tree> = new Map<string, Tree>();
 
-    private langLookup = [
-        { name: "bash", path: "tree-sitter-bash.wasm" },
-        { name: "c_sharp", path: "tree-sitter-c_sharp.wasm" },
-        { name: "c", path: "tree-sitter-c.wasm" },
-        { name: "cpp", path: "tree-sitter-cpp.wasm" },
-        { name: "go", path: "tree-sitter-go.wasm" },
-        { name: "html", path: "tree-sitter-html.wasm" },
-        { name: "java", path: "tree-sitter-java.wasm" },
-        { name: "javascript", path: "tree-sitter-javascript.wasm" },
-        { name: "php", path: "tree-sitter-php.wasm" },
-        { name: "python", path: "tree-sitter-python.wasm" },
-        { name: "ql", path: "tree-sitter-ql.wasm" },
-        { name: "ruby", path: "tree-sitter-ruby.wasm" },
-        { name: "rust", path: "tree-sitter-rust.wasm" },
-        { name: "toml", path: "tree-sitter-toml.wasm" },
-        { name: "typescript", path: "tree-sitter-typescript.wasm" },
-        { name: "yaml", path: "tree-sitter-yaml.wasm" },
-    ];
+    private langLookup: Map<string, string> = new Map<string, string>([
+        ["bash","tree-sitter-bash.wasm"],
+        ["c_sharp","tree-sitter-c_sharp.wasm"],
+        ["c","tree-sitter-c.wasm"],
+        ["cpp","tree-sitter-cpp.wasm"],
+        ["go","tree-sitter-go.wasm"],
+        ["html","tree-sitter-html.wasm"],
+        ["java","tree-sitter-java.wasm"],
+        ["javascript","tree-sitter-javascript.wasm"],
+        ["php","tree-sitter-php.wasm"],
+        ["python","tree-sitter-python.wasm"],
+        ["ql","tree-sitter-ql.wasm"],
+        ["ruby","tree-sitter-ruby.wasm"],
+        ["rust","tree-sitter-rust.wasm"],
+        ["toml","tree-sitter-toml.wasm"],
+        ["typescript","tree-sitter-typescript.wasm"],
+        ["yaml","tree-sitter-yaml.wasm"],
+    ]);
 
+    public userSuppliedWASMs = new Map<string, string>();
+
+    // TODO: Figure out how to reuse a parser if the language is the same
     private async createParser(langName: string): Promise<any> {
         return new Promise(async (resolve, reject) => {
             console.log("Creating parser for language: " + langName);
             await Parser.init();
             this.parser = new Parser();
             // Get the path from the language lookup
-            const langPath = this.langLookup.find(
-                (lang) => lang.name === langName
-            )?.path;
-            if (!langPath) {
-                reject("Could not find the language");
+            let langPath = this.langLookup.get(langName);
+            // Check if the user has supplied a custom wasm
+            if (this.userSuppliedWASMs.has(langName)) {
+                langPath = this.userSuppliedWASMs.get(langName);
             }
+            if (langPath === undefined) {
+                reject("Could not find the language");
+            } else {
             // The path needs to be relative to the build root
             const path = resolvePath(
                 __dirname,
@@ -51,6 +62,7 @@ export class ASTGenerator {
             this.parser.setLanguage(language);
             console.log("Finished creating Parser");
             resolve(this.parser);
+            }
         });
     }
 
@@ -73,12 +85,11 @@ export class ASTGenerator {
                 currentDoc.fileName.toString().toLocaleLowerCase()
             );
             if (tree === undefined || forceRebuild) {
+                console.log("Building AST");
                 // If no parser then create one
-                if (!this.parser) {
-                    this.parser = await this.createParser(
-                        currentDoc.languageId
-                    );
-                }
+                this.parser = await this.createParser(
+                    currentDoc.languageId
+                );
                 // Generate the AST
                 tree = await this.parser.parse(currentDoc.getText());
                 if (tree) {
@@ -98,9 +109,10 @@ export class ASTGenerator {
             const tree = await this.getAST();
             try {
                 let queryResult = await this.parser.language.query(query);
-                let queryObj = await queryResult.captures(tree.rootNode);
+                let queryObj: QueryResult[] = await queryResult.captures(tree.rootNode);
                 if (queryObj) {
-                    resolve(queryObj);
+                    let nodes = queryObj.map((node) => node.node);
+                    resolve(nodes);
                 } else {
                     reject("Could not parse the query");
                 }
@@ -110,5 +122,14 @@ export class ASTGenerator {
                 reject("Could not parse the query");
             }
         });
+    }
+
+    public setCustomWASM(langName: string, path: string) {
+        // Remove the language from the lookup in favor of the user's
+        if (this.langLookup.has(langName)) {
+            this.langLookup.delete(langName);
+        }
+        console.log("Setting custom WASM for language: " + langName);
+        this.userSuppliedWASMs.set(langName, path);
     }
 }
