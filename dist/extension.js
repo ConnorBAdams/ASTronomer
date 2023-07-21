@@ -422,7 +422,7 @@ class ASTNode extends vscode.TreeItem {
                 this.label = `${this.label}  :  lines ${this.node.startPosition.row} - ${this.node.endPosition.row}`;
             }
             else {
-                this.label = `${this.label}  :  chars ${this.node.startPosition.column} - ${this.node.endPosition.column}`;
+                this.label = `${this.label}  :  line ${this.node.startPosition.row} : c ${this.node.startPosition.column} - ${this.node.endPosition.column}`;
             }
         }
         else {
